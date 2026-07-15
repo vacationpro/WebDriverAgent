@@ -35,9 +35,10 @@ jobs:
             plutil -extract UUID raw -)
           cp profile.mobileprovision \
             ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
-
+     
       - name: Build
         run: |
+          UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | plutil -extract UUID raw -)
           xcodebuild archive \
             -project WebDriverAgent.xcodeproj \
             -scheme WebDriverAgentRunner \
@@ -45,7 +46,8 @@ jobs:
             -archivePath WDA.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="iPhone Distribution" \
-            DEVELOPMENT_TEAM=${{ secrets.TEAM_ID }}
+            DEVELOPMENT_TEAM=${{ secrets.TEAM_ID }} \
+            PROVISIONING_PROFILE=$UUID
 
       - name: Export IPA
         run: |
