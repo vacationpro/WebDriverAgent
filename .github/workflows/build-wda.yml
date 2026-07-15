@@ -38,23 +38,33 @@ jobs:
      
       - name: Build
         run: |
-          UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | plutil -extract UUID raw -)
           xcodebuild build-for-testing \
             -project WebDriverAgent.xcodeproj \
             -scheme WebDriverAgentRunner \
             -destination "generic/platform=iOS" \
             -derivedDataPath DerivedData \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
-            DEVELOPMENT_TEAM=${{ secrets.TEAM_ID }} \
-            PROVISIONING_PROFILE=$UUID \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
             PRODUCT_BUNDLE_IDENTIFIER=com.RsQ9.j8fEG
 
-      - name: Package IPA
+      - name: Sign and Package
         run: |
-          mkdir -p Payload
-          cp -r "DerivedData/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app" Payload/
+          UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | plutil -extract UUID raw -)
+          APP=$(find DerivedData -name "WebDriverAgentRunner-Runner.app" ! -path "*/iphonesimulator/*" | head -1)
+          
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.RsQ9.j8fEG" "$APP/Info.plist"
+          cp ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision "$APP/embedded.mobileprovision"
+          
+          security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision \
+            | /usr/libexec/PlistBuddy -x -c "Print :Entitlements" /dev/stdin > ent.plist
+          
+          find "$APP" \( -name "*.dylib" -o -name "*.framework" \) \
+            -exec codesign -f -s "iPhone Distribution" {} \;
+          codesign -f -s "iPhone Distribution" --entitlements ent.plist "$APP"
+          
+          mkdir Payload && cp -r "$APP" Payload/
           zip -r WDA.ipa Payload/
+
 
 
       - name: Upload
