@@ -24,8 +24,10 @@ jobs:
 
       - name: Package IPA
         run: |
+          APP="DerivedData/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app"
+          rm -rf "$APP/Frameworks/XC*.framework"
           mkdir Payload
-          cp -r "DerivedData/Build/Products/Debug-iphoneos/WebDriverAgentRunner-Runner.app" Payload/
+          cp -r "$APP" Payload/
           zip -r WDA.ipa Payload/
 
       - name: Upload
