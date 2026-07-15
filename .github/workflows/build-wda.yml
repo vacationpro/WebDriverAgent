@@ -53,10 +53,10 @@ jobs:
             echo "Error: PROFILE_UUID not set" && exit 1
           fi
 
-          PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/$UUID.mobileprovision"
-          echo "Looking for profile at: $PROFILE_PATH"
+          # 直接使用工作目录中的原始 profile 文件（已在 Install Profile 中验证有效）
+          PROFILE_PATH="profile.mobileprovision"
+          echo "Using profile at: $PROFILE_PATH"
 
-          # 检查文件是否存在且非空
           if [ ! -f "$PROFILE_PATH" ]; then
             echo "Error: Profile file not found at $PROFILE_PATH"
             exit 1
@@ -73,8 +73,6 @@ jobs:
 
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.RsQ9.j8fEG" "$APP/Info.plist"
           cp "$PROFILE_PATH" "$APP/embedded.mobileprovision"
-
-          # 再次验证 embedded 文件是否拷贝成功
           if [ ! -s "$APP/embedded.mobileprovision" ]; then
             echo "Error: Failed to copy profile to app bundle" && exit 1
           fi
