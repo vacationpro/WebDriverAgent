@@ -16,8 +16,12 @@ jobs:
           security create-keychain -p "" build.keychain
           security default-keychain -s build.keychain
           security unlock-keychain -p "" build.keychain
-          security import cert.p12 -k build.keychain \
-            -P "$P12_PASSWORD" -T /usr/bin/codesign
+          openssl pkcs12 -in cert.p12 -passin pass:$P12_PASSWORD \
+            -legacy -nodes -out cert.pem
+          openssl x509 -in cert.pem -out cert_only.pem
+          openssl rsa -in cert.pem -out key.pem
+          security import cert_only.pem -k build.keychain -T /usr/bin/codesign
+          security import key.pem -k build.keychain -T /usr/bin/codesign
           security set-key-partition-list \
             -S apple-tool:,apple: -s -k "" build.keychain
 
