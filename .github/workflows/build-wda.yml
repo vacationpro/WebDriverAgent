@@ -31,11 +31,11 @@ jobs:
         run: |
           echo "$PROFILE_BASE64" | base64 --decode > profile.mobileprovision
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          UUID=$(security cms -D -i profile.mobileprovision | \
-            plutil -extract UUID raw -)
-          cp profile.mobileprovision \
-            ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
-     
+          UUID=$(security cms -D -i profile.mobileprovision | plutil -extract UUID raw -)
+          cp profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          # 将 UUID 保存到环境变量，供后续步骤使用
+          echo "PROFILE_UUID=$UUID" >> $GITHUB_ENV
+
       - name: Build
         run: |
           xcodebuild build-for-testing \
@@ -49,26 +49,31 @@ jobs:
 
       - name: Sign and Package
         run: |
-          UUID=$(security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/*.mobileprovision | plutil -extract UUID raw -)
+          UUID="${{ env.PROFILE_UUID }}"
+          if [ -z "$UUID" ]; then
+            echo "Error: PROFILE_UUID not set" && exit 1
+          fi
           APP=$(find DerivedData -name "WebDriverAgentRunner-Runner.app" ! -path "*/iphonesimulator/*" | head -1)
-          
+          if [ -z "$APP" ]; then
+            echo "Error: App not found" && exit 1
+          fi
+
           /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.RsQ9.j8fEG" "$APP/Info.plist"
-          cp ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision "$APP/embedded.mobileprovision"
-          
-          security cms -D -i ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision \
+          PROFILE_PATH=~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+          cp "$PROFILE_PATH" "$APP/embedded.mobileprovision"
+
+          security cms -D -i "$PROFILE_PATH" \
             | /usr/libexec/PlistBuddy -x -c "Print :Entitlements" /dev/stdin > ent.plist
-          
+
           find "$APP" \( -name "*.dylib" -o -name "*.framework" \) \
             -exec codesign -f -s "iPhone Distribution" {} \;
           codesign -f -s "iPhone Distribution" --entitlements ent.plist "$APP"
-          
+
           mkdir Payload && cp -r "$APP" Payload/
           zip -r WDA.ipa Payload/
-
-
 
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: WDA
-          path: output/*.ipa
+          path: WDA.ipa   # 修正路径，因为 zip 生成在当前目录
