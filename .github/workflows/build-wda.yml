@@ -36,9 +36,6 @@ jobs:
           cp profile.mobileprovision \
             ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
 
-      - name: Bootstrap
-        run: bash Scripts/bootstrap.sh
-
       - name: Build
         run: |
           xcodebuild archive \
